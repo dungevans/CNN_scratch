@@ -229,7 +229,6 @@ class SGD:
 
 import numpy as np
 
-# --- BỔ SUNG LỚP ACTIVATION ---
 class ReLU:
     def __init__(self):
         self.input = None
@@ -241,7 +240,6 @@ class ReLU:
     def backward(self, dy):
         return dy * (self.input > 0)
 
-# --- BỔ SUNG LỚP FLATTEN (Nối giữa Conv và Linear) ---
 class Flatten:
     def __init__(self):
         self.input_shape = None
@@ -249,19 +247,19 @@ class Flatten:
     def forward(self, x):
         """
         x: (Batch_size, Channels, Height, Width)
-        Trả về: (Batch_size, Channels * Height * Width)
+         return (Batch_size, Channels * Height * Width)
         """
         self.input_shape = x.shape
         batch_size = x.shape[0]
-        # Giữ nguyên batch_size, gom tất cả dimension còn lại vào 1 trục
+        
         return x.reshape(batch_size, -1)
 
     def backward(self, dy):
         """
         dy: (Batch_size, Flattened_Dim)
-        Trả về: (Batch_size, Channels, Height, Width)
+         (Batch_size, Channels, Height, Width)
         """
-        # Khôi phục lại hình dạng ban đầu trước khi làm phẳng
+        
         return dy.reshape(self.input_shape)
     
 class CNN:
@@ -293,40 +291,40 @@ class CNN:
 
 import time
 
-# --- CẤU HÌNH ---
-np.random.seed(42) # Để kết quả có thể tái lập
-batch_size = 4    # Giảm batch size vì Conv backward bằng vòng lặp rất chậm
-img_ch, img_h, img_w = 3, 32, 32 # Ảnh RGB 32x32
+
+np.random.seed(42) 
+batch_size = 4    
+img_ch, img_h, img_w = 3, 32, 32 
 num_classes = 2
 learning_rate = 0.001
 epochs = 5
 
-# --- TẠO DỮ LIỆU ẢNH GIẢ LẬP ---
-X_train = np.random.randn(20, img_ch, img_h, img_w) # 20 ảnh tổng cộng
+
+X_train = np.random.randn(20, img_ch, img_h, img_w) 
 y_train_raw = np.random.randint(0, num_classes, 20)
-# One-hot encoding
+
 y_train = np.eye(num_classes)[y_train_raw]
 
-# --- TÍNH TOÁN KÍCH THƯỚC FLATTEN TỰ ĐỘNG ---
-# Chúng ta forward thử một dummy input qua nhánh Conv để biết Kích thước đầu ra
+
+
 def get_flatten_dim(input_shape, conv_layers):
     dummy_x = np.zeros((1, *input_shape))
     out = dummy_x
     for layer in conv_layers:
         out = layer.forward(out)
-    return out.size # Tổng số phần tử sau khi làm phẳng (trừ batch)
+    return out.size 
 
-# Nhánh tích chập
+
 conv_branch = [
-    Conv2D(in_channel=3, out_channel=8, kernel=3, stride=2, padding=1), # Out: (8, 16, 16)
+    Conv2D(in_channel=3, out_channel=8, kernel=3, stride=2, padding=1), 
     ReLU()
 ]
 
-# Tính số features cần nối vào Linear: 8*16*16 = 2048
+
 flatten_dim = get_flatten_dim((img_ch, img_h, img_w), conv_branch)
 print(f"Features after Flatten: {flatten_dim}")
 
-# --- KHỞI TẠO MODEL HOÀN CHỈNH ---
+
 model_layers = conv_branch + [
     Flatten(),
     Linear(flatten_dim, 64),
@@ -338,33 +336,33 @@ cnn_model = CNN(model_layers)
 criterion = CrossEntropyLoss()
 optimizer = SGD(model_layers, lr=learning_rate)
 
-# --- QUÁ TRÌNH HUẤN LUYỆN (TRAINING LOOP) ---
+
 num_samples = X_train.shape[0]
 
 for epoch in range(epochs):
     start_time = time.time()
     epoch_loss = 0
     
-    # Huấn luyện theo từng Mini-batch
+    
     for i in range(0, num_samples, batch_size):
         X_batch = X_train[i:i+batch_size]
         y_batch = y_train[i:i+batch_size]
         
-        # 1. Zero Grad
+        
         optimizer.zero_grad()
         
-        # 2. Forward
+        
         logits = cnn_model.forward(X_batch)
         
-        # 3. Loss
+        
         loss = criterion.forward(logits, y_batch)
         epoch_loss += loss * X_batch.shape[0]
         
-        # 4. Backward
+        
         dy = criterion.backward()
         cnn_model.backward(dy)
         
-        # 5. Update
+        
         optimizer.step()
         
     avg_loss = epoch_loss / num_samples
